@@ -1,0 +1,9 @@
+{
+  "name": "@lenticule-science/weiqi-obsmetrologia-formalization-service",
+  "version": "0.1.0",
+  "description": "Lean formalization of weiqi over Obsmetrologia, namespace WeiqiObsmetrologia (Board, Ko, Evidence, Admission): board, ko regimes and the 3^n bound, evidence monotonicity, admission as a Hoare program. Build: cd lib/weiqi-obsmetrologia && lake build.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "lake build"
+  }
+}

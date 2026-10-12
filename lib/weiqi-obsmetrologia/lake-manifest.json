@@ -1,0 +1,38 @@
+{"version": "1.2.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"type": "path",
+   "scope": "",
+   "name": "ObsmetrologiaComputing",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir":
+   "../../../../../../../../../../../../../science-services-section/services/engineering-science-services-section/services/computer-science-services-section/lib/obsmetrologia-computing",
+   "configFile": "lakefile.toml"},
+  {"type": "path",
+   "scope": "",
+   "name": "Obsmetrologia",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir":
+   "../../../../../../../../../../../../../science-services-section/services/information-science-services-section/services/math-services-section/services/obsmetrological-services-section/lib/obsmetrologia",
+   "configFile": "lakefile.toml"},
+  {"type": "path",
+   "scope": "",
+   "name": "ObsmetrologiaMaterials",
+   "manifestFile": "lake-manifest.json",
+   "inherited": true,
+   "dir":
+   "../../../../../../../../../../../../../science-services-section/services/engineering-science-services-section/services/computer-science-services-section/lib/obsmetrologia-computing/../../../materials-services-section/lib/obsmetrologia-materials",
+   "configFile": "lakefile.toml"},
+  {"type": "path",
+   "scope": "",
+   "name": "ObsmetrologiaPhysicalScience",
+   "manifestFile": "lake-manifest.json",
+   "inherited": true,
+   "dir":
+   "../../../../../../../../../../../../../science-services-section/services/engineering-science-services-section/services/computer-science-services-section/lib/obsmetrologia-computing/../../../../../natural-science-services-section/services/physical-science-services-section/lib/obsmetrologia-physical-science",
+   "configFile": "lakefile.toml"}],
+ "name": "WeiqiObsmetrologia",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}
