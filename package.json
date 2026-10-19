@@ -5,5 +5,9 @@
   "license": "UNLICENSED",
   "scripts": {
     "test": "lake build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/red-cup-engineering/weiqi-obsmetrologia-formalization-service.git"
   }
 }
