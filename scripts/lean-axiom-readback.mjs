@@ -15,9 +15,12 @@ export const PROOF_MODULES = Object.freeze([
   'Board', 'Ko', 'Evidence', 'Admission', 'ReachClosure',
 ]);
 
-export function declaredAxiomProbes(sourceFiles) {
-  if (!Array.isArray(sourceFiles) || sourceFiles.length !== PROOF_MODULES.length)
-    throw new TypeError('axiom audit requires all five original source modules');
+export function declaredAxiomProbes(sourceFiles, moduleNames=PROOF_MODULES) {
+  if (!Array.isArray(moduleNames) || moduleNames.length===0 ||
+      new Set(moduleNames).size!==moduleNames.length ||
+      moduleNames.some(name=>!PROOF_MODULES.includes(name)) ||
+      !Array.isArray(sourceFiles) || sourceFiles.length!==moduleNames.length)
+    throw new TypeError('axiom audit requires a nonempty set of original modules');
   const probes = [];
   for (let i=0;i<sourceFiles.length;i++) {
     if (typeof sourceFiles[i] !== 'string')
@@ -26,7 +29,7 @@ export function declaredAxiomProbes(sourceFiles) {
       /^#print axioms (WeiqiObsmetrologia\.[A-Za-z0-9_.]+)\s*$/gm,
     )].map(m=>m[1]);
     if (matches.length===0)
-      throw new TypeError('original module has no axiom probes: '+PROOF_MODULES[i]);
+      throw new TypeError('original module has no axiom probes: '+moduleNames[i]);
     probes.push(...matches);
   }
   if (new Set(probes).size!==probes.length)
@@ -72,11 +75,13 @@ export function auditAxiomReadback(output, expectedNames) {
  * A missing toolchain, unparsed output, a single forbidden imported axiom,
  * a truncated report or a compiler error ALL refuse with different statuses.
  */
-export function runNativeAxiomAudit(lakeDir, {timeoutMs=600000}={}) {
-  const sourceFiles=PROOF_MODULES.map(name=>readFileSync(
+export function runNativeAxiomAudit(lakeDir, {timeoutMs=600000, modules=PROOF_MODULES}={}) {
+  const sourceFiles=modules.map(name=>readFileSync(
     join(lakeDir,'WeiqiObsmetrologia',name+'.lean'),'utf8'));
-  const names=declaredAxiomProbes(sourceFiles);
-  const program='import WeiqiObsmetrologia\n'+
+  const names=declaredAxiomProbes(sourceFiles,modules);
+  const importModule=modules.length===1
+    ? 'WeiqiObsmetrologia.'+modules[0] : 'WeiqiObsmetrologia';
+  const program='import '+importModule+'\n'+
     names.map(name=>'#print axioms '+name).join('\n')+'\n';
   const tmp=mkdtempSync(join(tmpdir(),'weiqi-axiom-audit-'));
   try {
@@ -95,9 +100,9 @@ export function runNativeAxiomAudit(lakeDir, {timeoutMs=600000}={}) {
       :run.status!==0?'lean-axiom-command-failed'
       :analysis.status;
     return Object.freeze({
-      status,sourceModuleCount:PROOF_MODULES.length,
       ...analysis,
-      status,
+      status,sourceModuleCount:modules.length,
+      sourceModules:Object.freeze([...modules]),
       command:['lake','lean','<temporary-original-source-axiom-probes>'],
       exitCode:run.status,elapsedMs,error:run.error?.message??null,
       commandSha256:createHash('sha256').update(program).digest('hex'),
