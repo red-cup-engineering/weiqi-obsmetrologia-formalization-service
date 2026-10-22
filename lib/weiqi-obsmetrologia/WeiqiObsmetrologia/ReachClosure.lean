@@ -65,6 +65,42 @@ theorem reachClosure_idempotent (pos : Position Point) (seed : Point → Prop) :
     obtain ⟨origin, horigin, path⟩ := hq
     exact ⟨origin, ⟨origin, horigin, Reach.refl origin⟩, path⟩
 
+/-- Closure preserves joins of seed predicates at one fixed position. There
+is no need to recompute the graph: every path's origin lies in one seed. -/
+theorem reachClosure_union (pos : Position Point)
+    (seed other : Point → Prop) :
+    B.reachClosure pos (fun q => seed q ∨ other q) =
+      (fun q => B.reachClosure pos seed q ∨ B.reachClosure pos other q) := by
+  funext target
+  apply propext
+  constructor
+  · rintro ⟨origin, horigin, path⟩
+    rcases horigin with hseed | hother
+    · exact Or.inl ⟨origin, hseed, path⟩
+    · exact Or.inr ⟨origin, hother, path⟩
+  · intro h
+    rcases h with ⟨origin, hseed, path⟩ | ⟨origin, hother, path⟩
+    · exact ⟨origin, Or.inl hseed, path⟩
+    · exact ⟨origin, Or.inr hother, path⟩
+
+/-- Saturate, merge a new seed, and saturate again = merge then saturate.
+This is an exact incremental reuse law, not a measured performance claim.
+It is specific to this fixed-position graph; ko/capture can change its edges. -/
+theorem reachClosure_merge (pos : Position Point)
+    (seed other : Point → Prop) :
+    B.reachClosure pos (fun q => B.reachClosure pos seed q ∨ other q) =
+    B.reachClosure pos (fun q => seed q ∨ other q) := by
+  calc
+    B.reachClosure pos (fun q => B.reachClosure pos seed q ∨ other q) =
+        (fun q => B.reachClosure pos (B.reachClosure pos seed) q ∨
+          B.reachClosure pos other q) :=
+      B.reachClosure_union pos (B.reachClosure pos seed) other
+    _ = (fun q => B.reachClosure pos seed q ∨
+        B.reachClosure pos other q) := by
+      rw [B.reachClosure_idempotent pos seed]
+    _ = B.reachClosure pos (fun q => seed q ∨ other q) :=
+      (B.reachClosure_union pos seed other).symm
+
 /-- A carrier predicate is closed under the existing position-specific paths. -/
 def ReachClosed (pos : Position Point) (carrier : Point → Prop) : Prop :=
   ∀ (p q : Point), carrier p →
@@ -194,6 +230,8 @@ end WeiqiObsmetrologia
 #print axioms WeiqiObsmetrologia.Board.reachClosure_extensive
 #print axioms WeiqiObsmetrologia.Board.reachClosure_monotone
 #print axioms WeiqiObsmetrologia.Board.reachClosure_idempotent
+#print axioms WeiqiObsmetrologia.Board.reachClosure_union
+#print axioms WeiqiObsmetrologia.Board.reachClosure_merge
 #print axioms WeiqiObsmetrologia.Board.reachClosure_adjunction
 #print axioms WeiqiObsmetrologia.Board.reachClosure_fixed_iff_closed
 #print axioms WeiqiObsmetrologia.Board.reachClosure_preserves_occupation
