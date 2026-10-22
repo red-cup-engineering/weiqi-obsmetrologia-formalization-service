@@ -42,6 +42,7 @@ test('original declared source layout is inspected without changing lakefile', (
   assert.equal(read.errors.length, 0);
   assert.equal(read.dependencies.every(x => x.sourcePresent), true);
   assert.equal(typeof read.reachSourceSha256, 'string');
+  assert.equal(Object.keys(read.moduleLocalProofAudit).length,5);
   assert.deepEqual(Object.keys(read.sourceModuleSha256),
     ['Board','Ko','Evidence','Admission','ReachClosure']);
   assert.equal(Object.values(read.sourceModuleSha256).every(v=>typeof v==='string'),true);
@@ -65,11 +66,11 @@ test('local Lean axiom-law violations refuse builds before opening Lake', () => 
     '  have h := propext',
   ].join('\n'));
   const read=inspectProofWorkspace(root);
-  assert.ok(read.errors.includes('local-axiom-law:propext'));
+  assert.ok(read.errors.includes('local-axiom-law:ReachClosure:propext'));
   assert.equal(read.localProofAudit.status,'refuse-lexically');
   assert.equal(runProofTarget(root,'reach').attemptedBuild,false);
   writeFileSync(file, 'axiom Unlicensed : Prop\n');
-  assert.ok(inspectProofWorkspace(root).errors.includes('local-axiom-law:new-axiom-declaration'));
+  assert.ok(inspectProofWorkspace(root).errors.includes('local-axiom-law:ReachClosure:new-axiom-declaration'));
 }));
 
 test('nested comments are ignored but unfinished comments refuse', () => {
@@ -122,5 +123,20 @@ test('missing any local proof module blocks before Lake and identifies that sour
   const result=inspectProofWorkspace(root);
   assert.ok(result.errors.includes('missing-local-proof-module:Evidence'));
   assert.equal(result.sourceModuleSha256.Evidence,null);
+  assert.equal(runProofTarget(root,'all').attemptedBuild,false);
+}));
+
+test('proof preflight refuses axiom debt in original Ko or Admission, not just ReachClosure',()=>fixture((root,lake)=>{
+  const ko=join(lake,'WeiqiObsmetrologia','Ko.lean');
+  writeFileSync(ko,'theorem bogus : True := by sorry\n');
+  const failed=inspectProofWorkspace(root);
+  assert.ok(failed.errors.includes('local-axiom-law:Ko:sorry'));
+  assert.equal(failed.moduleLocalProofAudit.Ko.status,'refuse-lexically');
+  assert.equal(runProofTarget(root,'all').attemptedBuild,false);
+  writeFileSync(ko,'-- no axiom claim\n');
+  const admission=join(lake,'WeiqiObsmetrologia','Admission.lean');
+  writeFileSync(admission,'axiom UnqualifiedStanding : Prop\n');
+  const another=inspectProofWorkspace(root);
+  assert.ok(another.errors.includes('local-axiom-law:Admission:new-axiom-declaration'));
   assert.equal(runProofTarget(root,'all').attemptedBuild,false);
 }));
