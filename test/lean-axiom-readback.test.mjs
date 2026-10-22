@@ -17,6 +17,10 @@ test('accepts only complete transitive kernel axiom readback under the original 
   assert.equal(r.status,'kernel-axiom-policy-passed');
   assert.equal(r.expected,2);
   assert.equal(r.received,2);
+  assert.deepEqual(r.declarations,[
+    {name:names[0],readbackPresent:true,axioms:[]},
+    {name:names[1],readbackPresent:true,axioms:['Quot.sound']},
+  ]);
   assert.deepEqual(r.forbidden,[]);
   assert.deepEqual(ALLOWED_AXIOMS,['Quot.sound']);
   assert.equal(PROOF_MODULES.length,5);
@@ -35,6 +39,7 @@ test('no compiler readback is never a false positive',()=>{
   const r=auditAxiomReadback('Build completed successfully\n',names);
   assert.equal(r.received,0);
   assert.deepEqual(r.missing,names);
+  assert.equal(r.declarations.every(d=>!d.readbackPresent&&d.axioms===null),true);
   assert.equal(r.status,'refused-axiom-evidence');
 });
 
