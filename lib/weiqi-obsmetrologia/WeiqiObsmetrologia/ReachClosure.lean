@@ -423,4 +423,3 @@ end WeiqiObsmetrologia
 #print axioms WeiqiObsmetrologia.Board.libertyBoundary_monotone
 #print axioms WeiqiObsmetrologia.Board.libertyBoundary_union
 #print axioms WeiqiObsmetrologia.Board.libertyBoundary_saturated
-#print axioms WeiqiObsmetrologia.Board.requiring
