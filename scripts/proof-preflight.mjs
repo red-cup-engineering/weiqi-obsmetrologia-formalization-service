@@ -22,6 +22,44 @@ function digest(path) {
     ? createHash('sha256').update(readFileSync(path)).digest('hex') : null;
 }
 
+/**
+ * A cheap, source-local *negative gate*: strip nested Lean block/line comments
+ * and refuse textual uses of axiom creation, propext, sorry or admit.
+ * This is not the Lean kernel and cannot inspect imported proof dependencies.
+ * Its purpose is to reject obvious illegal proof debt BEFORE expensive Lake.
+ */
+export function lexicallyAuditLeanSource(source) {
+  if (typeof source !== 'string') throw new TypeError('Lean source must be text');
+  let code = '', depth = 0, line = false;
+  for (let i=0; i<source.length;) {
+    if (line) {
+      if (source[i] === '\n') { line=false; code+='\n'; }
+      i++; continue;
+    }
+    if (depth>0) {
+      if (source.startsWith('/-', i)) { depth++; i+=2; }
+      else if (source.startsWith('-/', i)) { depth--; i+=2; }
+      else { if (source[i]==='\n') code+='\n'; i++; }
+      continue;
+    }
+    if (source.startsWith('/-',i)) { depth++; i+=2; continue; }
+    if (source.startsWith('--',i)) { line=true; i+=2; continue; }
+    code+=source[i++];
+  }
+  const tokens = new Set();
+  for (const token of ['propext','sorry','admit']) {
+    if (new RegExp('\\b'+token+'\\b','u').test(code)) tokens.add(token);
+  }
+  if (/^\s*(?:axiom|constant)\b/mu.test(code)) tokens.add('new-axiom-declaration');
+  if (depth!==0) tokens.add('unterminated-lean-comment');
+  return Object.freeze({
+    kind:'weiqi.localLeanLexicalGate.v1',
+    status:tokens.size?'refuse-lexically':'no-local-lexical-obstruction',
+    forbiddenTokens:Object.freeze([...tokens]),
+    qualification:'not-a-kernel-or-imported-axiom-check',
+  });
+}
+
 /** Inspect actual file mounts, not promises, package names, or cached prose. */
 export function inspectProofWorkspace(root) {
   const lakeDir = join(resolve(root), 'lib', 'weiqi-obsmetrologia');
@@ -45,18 +83,27 @@ export function inspectProofWorkspace(root) {
       existsSync(join(absolutePath, 'lakefile.toml'));
     if (!declaredPath) errors.push('undeclared:' + name);
     else if (!sourcePresent) errors.push('unmounted:' + name);
-    return { name, declaredPath, absolutePath, sourcePresent };
+    return { name, declaredPath, absolutePath, sourcePresent,
+      dependencyToolchain:sourcePresent && existsSync(join(absolutePath,'lean-toolchain'))
+        ? readFileSync(join(absolutePath,'lean-toolchain'),'utf8').trim() : null,
+    };
   });
   const toolchain = existsSync(toolchainFile)
     ? readFileSync(toolchainFile, 'utf8').trim() : null;
-  if (existsSync(join(lakeDir, 'WeiqiObsmetrologia', 'ReachClosure.lean')) === false) {
-    errors.push('missing-reach-source');
-  }
+  for (const dep of dependencies)
+    if (dep.dependencyToolchain && toolchain && dep.dependencyToolchain !== toolchain)
+      errors.push('toolchain-mismatch:' + dep.name);
+  const reachSource=join(lakeDir, 'WeiqiObsmetrologia', 'ReachClosure.lean');
+  if (!existsSync(reachSource)) errors.push('missing-reach-source');
+  const localProofAudit=existsSync(reachSource)
+    ? lexicallyAuditLeanSource(readFileSync(reachSource,'utf8')) : null;
+  for (const token of localProofAudit?.forbiddenTokens ?? [])
+    errors.push('local-axiom-law:' + token);
   return {
     status: errors.length ? 'blocked' : 'source-mounts-present',
-    errors, toolchain, lakeDir, dependencies,
+    errors, toolchain, lakeDir, dependencies, localProofAudit,
     lakefileSha256: digest(config),
-    reachSourceSha256: digest(join(lakeDir, 'WeiqiObsmetrologia', 'ReachClosure.lean')),
+    reachSourceSha256: digest(reachSource),
   };
 }
 
