@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runNativeAxiomAudit } from './lean-axiom-readback.mjs';
 
 const MODULES = Object.freeze({
   all: null,
@@ -119,7 +120,7 @@ export function inspectProofWorkspace(root) {
   };
 }
 
-/** A build is a proof-tool receipt only when Lake itself returned success. */
+/** The root proof receipt requires Lake success AND fresh kernel axiom readback. */
 export function runProofTarget(root, target = 'reach') {
   if (!Object.hasOwn(MODULES, target)) {
     return { status: 'refused', reason: 'unknown-target', target, allowed: Object.keys(MODULES) };
@@ -137,17 +138,30 @@ export function runProofTarget(root, target = 'reach') {
   const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
   const stdout = run.stdout ?? '';
   const stderr = run.stderr ?? '';
-  const status = run.error?.code === 'ENOENT' ? 'toolchain-unavailable'
+  const compileStatus = run.error?.code === 'ENOENT' ? 'toolchain-unavailable'
     : run.error ? 'execution-error'
       : run.status === 0 ? 'module-build-passed' : 'module-build-failed';
+  // A successful build can contain imported sorryAx, Classical.choice or
+  // propext; it is NOT sufficient under the actual organizational axiom law.
+  // Run fresh Lean #print axioms against the compiled declarations.
+  const axiomReadback = compileStatus === 'module-build-passed'
+    ? runNativeAxiomAudit(preflight.lakeDir,{
+        modules: target === 'all' ? undefined : [target === 'reach' ? 'ReachClosure'
+          : target === 'board' ? 'Board'
+          : target === 'ko' ? 'Ko'
+          : target === 'evidence' ? 'Evidence' : 'Admission'],
+      }) : null;
+  const status = compileStatus !== 'module-build-passed' ? compileStatus
+    : axiomReadback?.status === 'kernel-axiom-policy-passed'
+      ? 'module-build-and-axioms-passed' : 'axiom-audit-refused';
   return {
-    ...preflight, status, target, command: ['lake', ...args],
+    ...preflight, status, compileStatus, target, command: ['lake', ...args],
     attemptedBuild: true, exitCode: run.status, elapsedMs,
-    error: run.error?.message ?? null,
+    error: run.error?.message ?? null, axiomReadback,
     stdoutSha256: createHash('sha256').update(stdout).digest('hex'),
     stderrSha256: createHash('sha256').update(stderr).digest('hex'),
     stdoutTail: stdout.slice(-3000), stderrTail: stderr.slice(-3000),
-    qualification: 'module-build-only; not an independent axiom, Loopflow or publication gate',
+    qualification:'compiled target and fresh kernel transitive-axiom readback only; no Loopflow, source rights or publication gate',
   };
 }
 
@@ -157,7 +171,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const result = target === '--check' || target === undefined
     ? inspectProofWorkspace(root) : runProofTarget(root, target);
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-  if (!['source-mounts-present', 'module-build-passed'].includes(result.status)) {
+  if (!['source-mounts-present', 'module-build-and-axioms-passed'].includes(result.status)) {
     process.exitCode = 1;
   }
 }
