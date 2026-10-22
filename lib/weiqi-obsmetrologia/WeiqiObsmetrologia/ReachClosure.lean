@@ -345,3 +345,6 @@ end WeiqiObsmetrologia
 #print axioms WeiqiObsmetrologia.Board.empty_root_not_occupied
 #print axioms WeiqiObsmetrologia.Board.libertyBoundary_singleton_iff_liberties
 #print axioms WeiqiObsmetrologia.Board.libertyBoundary_disjoint_occupied
+#print axioms WeiqiObsmetrologia.Board.qi_iff_exists_libertyContact
+#print axioms WeiqiObsmetrologia.Board.libertyContact_stone_occupied
+#print axioms WeiqiObsmetrologia.Board.libertyContact_exterior
