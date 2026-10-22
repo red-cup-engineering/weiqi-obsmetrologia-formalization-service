@@ -28,8 +28,8 @@ them:
    `Obsmetrologia.Computing.HoareProgram`
    (`Obsmetrologia/Computing/HoareProgram.lean`) and the ko regimes of
    `Ko.lean`. A move's precondition is the conjunction of its legality
-   predicates; its postcondition is that the extended trace still satisfies
-   positional superko. `admission_seq` is the transport theorem: two
+   predicates, including an explicit nonempty colour-placement witness; its
+   postcondition is that the extended trace still satisfies positional superko. `admission_seq` is the transport theorem: two
    admissions along a shared trace compose, with the second admission's
    history-regime obligation discharged by the first's postcondition rather
    than independently assumed — genuine Hoare sequencing, not two
@@ -115,6 +115,14 @@ def NotOffBoard (_ : Point) : Prop := True
 /-- **Not occupied.** The point played must be empty in the current position. -/
 def NotOccupied (m : MoveInput Point) : Prop := m.current m.point = Stone.empty
 
+/-- The candidate actually places the selected, NONEMPTY colour at its named
+point in the supplied resulting position. This is necessary, not sufficient,
+for a legal Go transition: capture and other board changes are still delegated
+to the native rules engine. Without it, reflexive Reach at an empty root can
+falsely present adjacent empty points as liberties of a nonexistent stone. -/
+def PlacementMatches (m : MoveInput Point) : Prop :=
+  m.color ≠ Stone.empty ∧ m.next m.point = m.color
+
 /-- **Not suicide**, under the simplest suicide rule: the group the played
 stone joins, read off in the supplied resulting position `m.next`, has at
 least one liberty there. -/
@@ -133,8 +141,16 @@ def FreshPosition (m : MoveInput Point) : Prop := m.next ∉ m.history
 /-- **Legality**: the conjunction of the board-static and ko-regime
 predicates. -/
 def Legal (B : Board Point) (m : MoveInput Point) : Prop :=
-  NotOffBoard m.point ∧ NotOccupied m ∧ NotSuicide B m ∧
-    HistoryRegimeOk m ∧ FreshPosition m
+  NotOffBoard m.point ∧ NotOccupied m ∧ PlacementMatches m ∧
+    NotSuicide B m ∧ HistoryRegimeOk m ∧ FreshPosition m
+
+/-- Admitted candidates cannot use an empty-root Reach component as a Go
+string: the played point is occupied by the requested stone colour. -/
+theorem legal_root_occupied (B : Board Point) (m : MoveInput Point)
+    (h : Legal B m) : m.next m.point ≠ Stone.empty := by
+  have hplacement : PlacementMatches m := h.2.2.1
+  rw [hplacement.2]
+  exact hplacement.1
 
 /-- **The resulting trace still satisfies positional superko.** -/
 def RegimeHolds (m : MoveInput Point) : Prop :=
@@ -161,7 +177,7 @@ def admission (B : Board Point) : HoareProgram (MoveInput Point) (MoveInput Poin
   precondition := Legal B
   move := id
   postcondition := RegimeHolds
-  preserves := fun _ ⟨_, _, _, hreg, hfresh⟩ => nodup_append_of_fresh hreg hfresh
+  preserves := fun _ ⟨_, _, _, _, hreg, hfresh⟩ => nodup_append_of_fresh hreg hfresh
 
 /-- **Transport of the invariant.** Two admissions along a shared trace
 compose: if `m1` is admitted, `m2`'s history is exactly `m1`'s resulting
@@ -173,14 +189,15 @@ re-derived — this is Hoare-program sequencing, not two side-by-side facts. -/
 theorem admission_seq (B : Board Point) (m1 m2 : MoveInput Point)
     (hlink : m2.history = m1.history ++ [m1.next])
     (h1 : Legal B m1)
-    (h2rest : NotOffBoard m2.point ∧ NotOccupied m2 ∧ NotSuicide B m2 ∧ FreshPosition m2) :
+    (h2rest : NotOffBoard m2.point ∧ NotOccupied m2 ∧ PlacementMatches m2 ∧
+      NotSuicide B m2 ∧ FreshPosition m2) :
     RegimeHolds m2 := by
   have hreg1 : RegimeHolds m1 := (admission B).preserves m1 h1
   have hreg2 : HistoryRegimeOk m2 := by
     show Ko.PositionalSuperko m2.history
     rw [hlink]
     exact hreg1
-  exact nodup_append_of_fresh hreg2 h2rest.2.2.2
+  exact nodup_append_of_fresh hreg2 h2rest.2.2.2.2
 
 end Admission
 end WeiqiObsmetrologia
@@ -188,6 +205,7 @@ end WeiqiObsmetrologia
 #print axioms WeiqiObsmetrologia.boolPredicateChu
 #print axioms WeiqiObsmetrologia.functionPredicateChuMap
 #print axioms WeiqiObsmetrologia.boolean_hoare_is_lax_chu
+#print axioms WeiqiObsmetrologia.Admission.legal_root_occupied
 #print axioms WeiqiObsmetrologia.Admission.nodup_append_of_fresh
 #print axioms WeiqiObsmetrologia.Admission.admission
 #print axioms WeiqiObsmetrologia.Admission.admission_seq
