@@ -112,14 +112,24 @@ export function inspectProofWorkspace(root) {
     if (!existsSync(sourceFile)) errors.push('missing-local-proof-module:'+name);
     return [name,digest(sourceFile)];
   }));
-  const reachSource=join(lakeDir, 'WeiqiObsmetrologia', 'ReachClosure.lean');
-  const localProofAudit=existsSync(reachSource)
-    ? lexicallyAuditLeanSource(readFileSync(reachSource,'utf8'), { requireProbes:true }) : null;
-  for (const token of localProofAudit?.forbiddenTokens ?? [])
-    errors.push('local-axiom-law:' + token);
+  // Scan ALL local Lean modules, not only the newest ReachClosure file.
+  // The original root module itself has additional types and proofs.
+  // Imported axioms are still checked only by the fresh Lean kernel audit.
+  const moduleLocalProofAudit=Object.fromEntries(PROOF_MODULES.map(name=>{
+    const file=join(lakeDir,'WeiqiObsmetrologia',name+'.lean');
+    return [name,existsSync(file)
+      ? lexicallyAuditLeanSource(readFileSync(file,'utf8'),{
+          requireProbes:name==='ReachClosure',
+        }) : null];
+  }));
+  const localProofAudit=moduleLocalProofAudit.ReachClosure;
+  for(const [name,read] of Object.entries(moduleLocalProofAudit))
+    for (const token of read?.forbiddenTokens ?? [])
+      errors.push('local-axiom-law:' + name + ':' + token);
   return {
     status: errors.length ? 'blocked' : 'source-mounts-present',
     errors, toolchain, lakeDir, dependencies, localProofAudit,
+    moduleLocalProofAudit:Object.freeze(moduleLocalProofAudit),
     lakefileSha256: digest(config),
     sourceModuleSha256: Object.freeze(sourceModuleSha256),
     reachSourceSha256: sourceModuleSha256.ReachClosure,
