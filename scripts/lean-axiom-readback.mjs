@@ -67,10 +67,16 @@ export function auditAxiomReadback(output, expectedNames) {
       if (!ALLOWED_AXIOMS.includes(axiom))
         forbidden.push(Object.freeze({declaration:name,axiom}));
   const passed=!missing.length&&!duplicate.length&&!unknown.length&&!forbidden.length;
+  const declarations=Object.freeze(expectedNames.map(name=>Object.freeze({
+    name,
+    readbackPresent:found.has(name),
+    axioms:found.has(name)?Object.freeze([...found.get(name)]):null,
+  })));
   return Object.freeze({
     kind:'weiqi.leanAxiomReadback.v1',
     status:passed?'kernel-axiom-policy-passed':'refused-axiom-evidence',
     expected:expectedNames.length,received:found.size,
+    declarations,
     missing:Object.freeze(missing),duplicates:Object.freeze(duplicate),
     unknown:Object.freeze(unknown),forbidden:Object.freeze(forbidden),
     permittedAxioms:ALLOWED_AXIOMS,
