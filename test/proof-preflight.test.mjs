@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inspectProofWorkspace, runProofTarget } from '../scripts/proof-preflight.mjs';
+import { inspectProofWorkspace, runProofTarget, lexicallyAuditLeanSource } from '../scripts/proof-preflight.mjs';
 
 function fixture(testFn) {
   const root = mkdtempSync(join(tmpdir(), 'weiqi-proof-'));
@@ -47,4 +47,46 @@ test('unknown module target is refused before any execution', () => fixture(root
   const read = runProofTarget(root, 'invented');
   assert.equal(read.status, 'refused');
   assert.equal(read.reason, 'unknown-target');
+}));
+
+
+test('local Lean axiom-law violations refuse builds before opening Lake', () => fixture((root,lake) => {
+  const file = join(lake,'WeiqiObsmetrologia','ReachClosure.lean');
+  writeFileSync(file,[
+    '/-! A word propext in a nested documentation comment is not source debt.',
+    '    /- sorry is not code either -/',
+    '-/',
+    'theorem illegal : True := by',
+    '  have h := propext',
+  ].join('\n'));
+  const read=inspectProofWorkspace(root);
+  assert.ok(read.errors.includes('local-axiom-law:propext'));
+  assert.equal(read.localProofAudit.status,'refuse-lexically');
+  assert.equal(runProofTarget(root,'reach').attemptedBuild,false);
+  writeFileSync(file, 'axiom Unlicensed : Prop\n');
+  assert.ok(inspectProofWorkspace(root).errors.includes('local-axiom-law:new-axiom-declaration'));
+}));
+
+test('nested comments are ignored but unfinished comments refuse', () => {
+  const okay=lexicallyAuditLeanSource('/- sorry /- propext -/ -/ theorem t : True := by exact True.intro');
+  assert.equal(okay.status,'no-local-lexical-obstruction');
+  const bad=lexicallyAuditLeanSource('/- unfinished block');
+  assert.deepEqual(bad.forbiddenTokens,['unterminated-lean-comment']);
+  const sorry=lexicallyAuditLeanSource('theorem t : True := by sorry');
+  assert.deepEqual(sorry.forbiddenTokens,['sorry']);
+  assert.equal(okay.qualification,'not-a-kernel-or-imported-axiom-check');
+});
+
+test('mismatched declared Lean toolchain refuses before invoking Lake', () => fixture((root,lake) => {
+  for (const name of ['source-obs','source-computing']) {
+    const at=join(root,name);
+    mkdirSync(at,{recursive:true});
+    writeFileSync(join(at,'lakefile.toml'),'name = "source"\n');
+    writeFileSync(join(at,name==='source-obs'?'Obsmetrologia.lean':'ObsmetrologiaComputing.lean'),'-- source\n');
+    writeFileSync(join(at,'lean-toolchain'),name==='source-obs'
+      ? 'leanprover/lean4:v4.32.0\n' : 'leanprover/lean4:v4.31.0\n');
+  }
+  const read=inspectProofWorkspace(root);
+  assert.deepEqual(read.errors,['toolchain-mismatch:Obsmetrologia']);
+  assert.equal(runProofTarget(root,'reach').attemptedBuild,false);
 }));
