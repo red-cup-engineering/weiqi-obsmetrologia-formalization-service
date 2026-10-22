@@ -28,7 +28,7 @@ function digest(path) {
  * This is not the Lean kernel and cannot inspect imported proof dependencies.
  * Its purpose is to reject obvious illegal proof debt BEFORE expensive Lake.
  */
-export function lexicallyAuditLeanSource(source) {
+export function lexicallyAuditLeanSource(source, { requireProbes = false } = {}) {
   if (typeof source !== 'string') throw new TypeError('Lean source must be text');
   let code = '', depth = 0, line = false;
   for (let i=0; i<source.length;) {
@@ -52,10 +52,22 @@ export function lexicallyAuditLeanSource(source) {
   }
   if (/^\s*(?:axiom|constant)\b/mu.test(code)) tokens.add('new-axiom-declaration');
   if (depth!==0) tokens.add('unterminated-lean-comment');
+  const theoremNames = [...code.matchAll(/^\s*theorem\s+([A-Za-z][A-Za-z0-9_']*)/gmu)]
+    .map(match=>match[1]);
+  const axiomProbeNames = [...code.matchAll(/^\s*#print\s+axioms\s+WeiqiObsmetrologia\.Board\.([A-Za-z][A-Za-z0-9_']*)/gmu)]
+    .map(match=>match[1]);
+  if (requireProbes) {
+    for (const n of theoremNames)
+      if (!axiomProbeNames.includes(n)) tokens.add('missing-local-axiom-probe:' + n);
+    for (const n of axiomProbeNames)
+      if (!theoremNames.includes(n)) tokens.add('unknown-local-axiom-probe:' + n);
+  }
   return Object.freeze({
     kind:'weiqi.localLeanLexicalGate.v1',
     status:tokens.size?'refuse-lexically':'no-local-lexical-obstruction',
     forbiddenTokens:Object.freeze([...tokens]),
+    localTheoremCount:theoremNames.length,
+    localAxiomProbeCount:axiomProbeNames.length,
     qualification:'not-a-kernel-or-imported-axiom-check',
   });
 }
@@ -96,7 +108,7 @@ export function inspectProofWorkspace(root) {
   const reachSource=join(lakeDir, 'WeiqiObsmetrologia', 'ReachClosure.lean');
   if (!existsSync(reachSource)) errors.push('missing-reach-source');
   const localProofAudit=existsSync(reachSource)
-    ? lexicallyAuditLeanSource(readFileSync(reachSource,'utf8')) : null;
+    ? lexicallyAuditLeanSource(readFileSync(reachSource,'utf8'), { requireProbes:true }) : null;
   for (const token of localProofAudit?.forbiddenTokens ?? [])
     errors.push('local-axiom-law:' + token);
   return {
