@@ -10,7 +10,11 @@
     "proof:ko": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.Ko",
     "proof:evidence": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.Evidence",
     "proof:admission": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.Admission",
-    "proof:all": "cd lib/weiqi-obsmetrologia && lake build"
+    "proof:all": "cd lib/weiqi-obsmetrologia && lake build",
+    "test:preflight": "node --test test/proof-preflight.test.mjs",
+    "proof:preflight": "node scripts/proof-preflight.mjs --check",
+    "proof:receipt:reach": "node scripts/proof-preflight.mjs reach",
+    "proof:receipt:all": "node scripts/proof-preflight.mjs all"
   },
   "repository": {
     "type": "git",
