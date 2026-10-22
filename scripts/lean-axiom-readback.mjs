@@ -10,6 +10,15 @@ import { spawnSync } from 'node:child_process';
  * and prints the TRANSITIVE axiom set of each named compiled declaration.
  * The parser only refuses any unread or nonconforming kernel result.
  */
+// Pinned observational copy of the ORIGINAL theorem-audit service rule,
+// not an independent office empowered to change what axioms are legal.
+// Policy drift must be reconciled with the owning source before promotion.
+export const AXIOM_POLICY_ORIGIN = Object.freeze({
+  repository:'red-cup-engineering/obsmetrologia-theorem-audit',
+  file:'src/proof-work-order.mjs',
+  sourceBlob:'61fb48bed20367d673b5ab0603ea258bf12c20f8',
+  status:'pinned-observation; recheck owning rule on receiving',
+});
 export const ALLOWED_AXIOMS = Object.freeze(['Quot.sound']);
 export const PROOF_MODULES = Object.freeze([
   'Board', 'Ko', 'Evidence', 'Admission', 'ReachClosure',
@@ -65,6 +74,7 @@ export function auditAxiomReadback(output, expectedNames) {
     missing:Object.freeze(missing),duplicates:Object.freeze(duplicate),
     unknown:Object.freeze(unknown),forbidden:Object.freeze(forbidden),
     permittedAxioms:ALLOWED_AXIOMS,
+    policyOrigin:AXIOM_POLICY_ORIGIN,
     qualification:'transitive-axiom-readback-only; not entire Obsmetrologia Loopflow or source-authority admission',
   });
 }
