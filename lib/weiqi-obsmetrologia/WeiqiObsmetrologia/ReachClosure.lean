@@ -19,6 +19,14 @@ a valid Reach component but NOT an occupied Go string. Proofs below refuse
 to turn that distinction into a claim of territory, ownership, a legal move,
 a stable future group, or an independently received result.
 
+The closure/qi identities below are intentionally expressed as **pointwise
+biconditionals** over predicates (`∀ q, ... ↔ ...`), not equality of functions
+`Point → Prop`. That is the constructive extensional content available under
+the theorem-audit rule permitting only `Quot.sound`; promoting them to literal
+predicate equalities would require a separately forbidden proposition-extensionality
+axiom. Each local theorem has a `#print axioms` diagnostic. Source lexical
+screening is NOT the native Lean kernel or the actual imported-axiom audit.
+
 The closure is position-indexed. It does not prove monotonicity across legal
 moves, positional superko, causal-set interval transport, or the original
 Mark-generated Settling closure. Those require separate source-bound maps.
