@@ -28,8 +28,9 @@ them:
    `Obsmetrologia.Computing.HoareProgram`
    (`Obsmetrologia/Computing/HoareProgram.lean`) and the ko regimes of
    `Ko.lean`. A move's precondition is the conjunction of its legality
-   predicates, including an explicit nonempty colour-placement witness; its
-   postcondition is that the extended trace still satisfies positional superko. `admission_seq` is the transport theorem: two
+   predicates, including an explicit nonempty surviving-stone witness under
+   a NO-SUICIDE positional-superko fragment; its postcondition is that the
+   extended trace still satisfies positional superko. `admission_seq` is the transport theorem: two
    admissions along a shared trace compose, with the second admission's
    history-regime obligation discharged by the first's postcondition rather
    than independently assumed — genuine Hoare sequencing, not two
@@ -115,11 +116,15 @@ def NotOffBoard (_ : Point) : Prop := True
 /-- **Not occupied.** The point played must be empty in the current position. -/
 def NotOccupied (m : MoveInput Point) : Prop := m.current m.point = Stone.empty
 
-/-- The candidate actually places the selected, NONEMPTY colour at its named
-point in the supplied resulting position. This is necessary, not sufficient,
-for a legal Go transition: capture and other board changes are still delegated
-to the native rules engine. Without it, reflexive Reach at an empty root can
-falsely present adjacent empty points as liberties of a nonexistent stone. -/
+/-- Under this MODULE'S NO-SUICIDE positional-superko fragment, the proposed
+result must retain a stone of the selected NONEMPTY colour at the played point.
+This is necessary for THAT fragment, NOT for all Go rules: the original native
+Weiqi engine admits a New Zealand positional-superko self-capture which removes
+the played stone and its connected group (5x5 witness: C3 black, D3 empty,
+white at B2/C2/B3/D2/E3/D4; exact fixture is in legal-frontier.test.mjs).
+This remains only a conservative admission condition: Board and this module
+do not compute captures or validate every changed board cell. The condition
+also prevents reflexive Reach at an empty root from masquerading as a string. -/
 def PlacementMatches (m : MoveInput Point) : Prop :=
   m.color ≠ Stone.empty ∧ m.next m.point = m.color
 
@@ -138,14 +143,20 @@ def HistoryRegimeOk (m : MoveInput Point) : Prop := Ko.PositionalSuperko m.histo
 superko check performs before admitting a move. -/
 def FreshPosition (m : MoveInput Point) : Prop := m.next ∉ m.history
 
-/-- **Legality**: the conjunction of the board-static and ko-regime
-predicates. -/
+/-- **Scoped candidate admission, NOT general Go legality.** This is the
+NO-SUICIDE plus POSITIONAL-SUPERKO, surviving-placement subset with a
+caller-supplied next position. Other original game rules differ: Japanese
+simple ko and AGA situational superko do not have this exact history regime;
+New Zealand permits legal self-capture, including cases where the played point
+is empty in the result. This conjunction does NOT verify that the supplied
+transition came from the game's actual capture/replay engine. -/
 def Legal (B : Board Point) (m : MoveInput Point) : Prop :=
   NotOffBoard m.point ∧ NotOccupied m ∧ PlacementMatches m ∧
     NotSuicide B m ∧ HistoryRegimeOk m ∧ FreshPosition m
 
-/-- Admitted candidates cannot use an empty-root Reach component as a Go
-string: the played point is occupied by the requested stone colour. -/
+/-- Within this conservative no-suicide fragment, admitted candidates cannot
+use an empty-root Reach component as a Go string: the resulting played point
+is occupied. Do NOT transport this theorem as a necessity for all rulesets. -/
 theorem legal_root_occupied (B : Board Point) (m : MoveInput Point)
     (h : Legal B m) : m.next m.point ≠ Stone.empty := by
   have hplacement : PlacementMatches m := h.2.2.1
@@ -169,10 +180,11 @@ theorem nodup_append_of_fresh {α : Type} {l : List α} {x : α}
     subst hbx
     exact hx ha
 
-/-- **The admission**: a `HoareProgram` whose precondition is `Legal` and
-whose postcondition is that the extended trace still satisfies positional
-superko. The move itself is the identity on `MoveInput` — admission checks and
-certifies a proposed move, it does not compute one. -/
+/-- **Scoped admission**: a HoareProgram for the above conservative,
+no-suicide, positional-superko candidate predicate. Its postcondition is only
+that the supplied next position extends a duplicate-free trace. The identity
+move does NOT compute a board update and grants no general game-rule legality,
+real move authority or right to claim an accepted play. -/
 def admission (B : Board Point) : HoareProgram (MoveInput Point) (MoveInput Point) where
   precondition := Legal B
   move := id
