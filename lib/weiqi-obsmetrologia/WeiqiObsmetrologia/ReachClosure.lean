@@ -331,6 +331,77 @@ theorem libertyContact_exterior (pos : Position Point)
       carrier.occupied q hmember
   exact hoccupied h.2.1
 
+/-! ## Exactly when liberty endpoints retain their contact witnesses -/
+
+/-- A contact witness retains both endpoints and the original proof of
+qualified fixed-position stone–empty adjacency. This is a dependent witness
+over the original Board/Reach carrier, not a separate graph representation. -/
+structure ContactWitness (B : Board Point) (pos : Position Point)
+    (carrier : B.OccupiedCarrier pos) where
+  stone : Point
+  endpoint : Point
+  incidence : B.LibertyContact pos carrier stone endpoint
+
+/-- Forget the occupied endpoint and its proof, keeping only the liberty.
+That is the same information discarded by the ordinary qi-set projection. -/
+def contactEndpoint (pos : Position Point) (carrier : B.OccupiedCarrier pos)
+    (w : B.ContactWitness pos carrier) : Point :=
+  w.endpoint
+
+/-- A liberty is supported precisely when a source-qualified contact witness
+ends there. We do not infer a boundary measure from mere existence. -/
+theorem qi_iff_contactEndpoint_supported (pos : Position Point)
+    (carrier : B.OccupiedCarrier pos) (q : Point) :
+    B.qi pos carrier q ↔
+      ∃ w : B.ContactWitness pos carrier, B.contactEndpoint pos carrier w = q := by
+  constructor
+  · intro hqi
+    obtain ⟨p, hcontact⟩ := (B.qi_iff_exists_libertyContact pos carrier q).mp hqi
+    exact ⟨⟨p, q, hcontact⟩, rfl⟩
+  · rintro ⟨⟨p, endpoint, hcontact⟩, hq⟩
+    change endpoint = q at hq
+    subst endpoint
+    exact (B.qi_iff_exists_libertyContact pos carrier q).mpr ⟨p, hcontact⟩
+
+/-- Exact source-reconstruction gate: forgetting the stone is injective
+IF AND ONLY IF every liberty has at most one qualified contact stone.
+Crossing counts and distinct-liberty counts can coincide without claiming
+this stronger source-recovery law, so do not reverse this implication by a
+mere equality of totals. -/
+theorem contactEndpoint_injective_iff_unique (pos : Position Point)
+    (carrier : B.OccupiedCarrier pos) :
+    Function.Injective (B.contactEndpoint pos carrier) ↔
+      ∀ (q p₁ p₂ : Point),
+        B.LibertyContact pos carrier p₁ q →
+        B.LibertyContact pos carrier p₂ q → p₁ = p₂ := by
+  constructor
+  · intro hinj q p₁ p₂ h₁ h₂
+    have heq : (⟨p₁, q, h₁⟩ : B.ContactWitness pos carrier) =
+        ⟨p₂, q, h₂⟩ := hinj rfl
+    exact congrArg (fun w : B.ContactWitness pos carrier => w.stone) heq
+  · intro unique w₁ w₂ heq
+    rcases w₁ with ⟨s₁, q₁, h₁⟩
+    rcases w₂ with ⟨s₂, q₂, h₂⟩
+    change q₁ = q₂ at heq
+    subst q₂
+    have hs : s₁ = s₂ := unique q₁ s₁ s₂ h₁ h₂
+    subst s₂
+    rfl
+
+/-- Two different stones touching one liberty prove genuine non-recovery
+of contact incidence from the liberty endpoint alone. This is a general
+theorem requiring actual witnesses, not a hard-coded diagram or quantum
+entanglement premise. -/
+theorem contactEndpoint_noninjective_of_shared (pos : Position Point)
+    (carrier : B.OccupiedCarrier pos) (q p₁ p₂ : Point)
+    (hne : p₁ ≠ p₂)
+    (h₁ : B.LibertyContact pos carrier p₁ q)
+    (h₂ : B.LibertyContact pos carrier p₂ q) :
+    ¬ Function.Injective (B.contactEndpoint pos carrier) := by
+  intro hinj
+  exact hne ((B.contactEndpoint_injective_iff_unique pos carrier).mp
+    hinj q p₁ p₂ h₁ h₂)
+
 end Board
 end WeiqiObsmetrologia
 
@@ -348,3 +419,6 @@ end WeiqiObsmetrologia
 #print axioms WeiqiObsmetrologia.Board.qi_iff_exists_libertyContact
 #print axioms WeiqiObsmetrologia.Board.libertyContact_stone_occupied
 #print axioms WeiqiObsmetrologia.Board.libertyContact_exterior
+#print axioms WeiqiObsmetrologia.Board.qi_iff_contactEndpoint_supported
+#print axioms WeiqiObsmetrologia.Board.contactEndpoint_injective_iff_unique
+#print axioms WeiqiObsmetrologia.Board.contactEndpoint_noninjective_of_shared
