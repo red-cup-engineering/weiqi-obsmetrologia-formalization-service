@@ -90,3 +90,23 @@ test('mismatched declared Lean toolchain refuses before invoking Lake', () => fi
   assert.deepEqual(read.errors,['toolchain-mismatch:Obsmetrologia']);
   assert.equal(runProofTarget(root,'reach').attemptedBuild,false);
 }));
+
+
+test('all local theorem declarations require real axiom probes, not docstring ghosts', () => {
+  const annotated = [
+    '/-! theorem phantom never exists: it is only documentation -/',
+    'theorem real : True := by exact True.intro',
+    '#print axioms WeiqiObsmetrologia.Board.real',
+  ].join('\n');
+  const okay=lexicallyAuditLeanSource(annotated,{requireProbes:true});
+  assert.deepEqual(okay.forbiddenTokens,[]);
+  assert.equal(okay.localTheoremCount,1);
+  assert.equal(okay.localAxiomProbeCount,1);
+  const bad=lexicallyAuditLeanSource(
+    annotated + '\n#print axioms WeiqiObsmetrologia.Board.phantom',
+    {requireProbes:true});
+  assert.ok(bad.forbiddenTokens.includes('unknown-local-axiom-probe:phantom'));
+  const absent=lexicallyAuditLeanSource('theorem missing : True := by exact True.intro',
+    {requireProbes:true});
+  assert.ok(absent.forbiddenTokens.includes('missing-local-axiom-probe:missing'));
+});
