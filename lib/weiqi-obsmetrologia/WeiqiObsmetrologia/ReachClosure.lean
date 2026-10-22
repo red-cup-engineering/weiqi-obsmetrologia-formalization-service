@@ -224,6 +224,66 @@ theorem libertyBoundary_disjoint_occupied (pos : Position Point)
       carrier.occupied q hmember
   exact hoccupied hboundary.1
 
+
+/-! ## Qi as the typed external boundary of an occupied connected carrier -/
+
+/-- In conventional weiqi, `qi` (liberties) names the empty frontier of a
+stone string. This is a QUALIFIED interface to the existing liberty boundary,
+not a scalar vitality score: an empty root cannot be supplied as an
+`OccupiedCarrier`. No ko or capture-history legality is inferred here. -/
+def qi (pos : Position Point) (carrier : OccupiedCarrier pos) : Point → Prop :=
+  B.libertyBoundary pos carrier.contains
+
+/-- Qi is outside the occupied string, by the previously proved boundary
+disjointness. It is not itself an occupied territory claim. -/
+theorem qi_disjoint_occupied (pos : Position Point) (carrier : OccupiedCarrier pos) :
+    ∀ q, B.qi pos carrier q →
+      ¬ (B.closeOccupiedCarrier pos carrier).contains q := by
+  exact B.libertyBoundary_disjoint_occupied pos carrier
+
+/-- More seed evidence cannot erase a fixed-position liberty boundary;
+capture/ko transitions are NOT fixed-position seed inclusions. -/
+theorem libertyBoundary_monotone (pos : Position Point)
+    {seed other : Point → Prop} (h : ∀ q, seed q → other q) :
+    ∀ q, B.libertyBoundary pos seed q → B.libertyBoundary pos other q := by
+  intro q hq
+  obtain ⟨hempty, p, hreach, hadj⟩ := hq
+  exact ⟨hempty, p, B.reachClosure_monotone pos h p hreach, hadj⟩
+
+/-- Qi/frontier respects a join of seed carriers at one position. Shared
+liberties are sets, not summed counts: this is an exact union law suitable
+for incremental deduplication, not a life, influence, or strategy theorem. -/
+theorem libertyBoundary_union (pos : Position Point)
+    (seed other : Point → Prop) :
+    B.libertyBoundary pos (fun p => seed p ∨ other p) =
+      (fun q => B.libertyBoundary pos seed q ∨ B.libertyBoundary pos other q) := by
+  funext q
+  apply propext
+  constructor
+  · rintro ⟨hempty, p, ⟨origin, horigin, path⟩, hadj⟩
+    rcases horigin with hseed | hother
+    · exact Or.inl ⟨hempty, p, ⟨origin, hseed, path⟩, hadj⟩
+    · exact Or.inr ⟨hempty, p, ⟨origin, hother, path⟩, hadj⟩
+  · intro h
+    rcases h with ⟨hempty, p, ⟨origin, hseed, path⟩, hadj⟩ |
+                   ⟨hempty, p, ⟨origin, hother, path⟩, hadj⟩
+    · exact ⟨hempty, p, ⟨origin, Or.inl hseed, path⟩, hadj⟩
+    · exact ⟨hempty, p, ⟨origin, Or.inr hother, path⟩, hadj⟩
+
+/-- Once the connected carrier has been saturated, a second saturation
+does not discover new qi. This is a fixed-position caching/invalidation law;
+it deliberately says nothing about which frontiers survive the next move. -/
+theorem libertyBoundary_saturated (pos : Position Point) (seed : Point → Prop) :
+    B.libertyBoundary pos (B.reachClosure pos seed) =
+      B.libertyBoundary pos seed := by
+  funext q
+  apply propext
+  constructor
+  · rintro ⟨hempty, p, ⟨mid, ⟨origin, horigin, first⟩, last⟩, hadj⟩
+    exact ⟨hempty, p, ⟨origin, horigin, Reach.trans first last⟩, hadj⟩
+  · rintro ⟨hempty, p, ⟨origin, horigin, path⟩, hadj⟩
+    exact ⟨hempty, p, ⟨origin, ⟨origin, horigin, Reach.refl origin⟩, path⟩, hadj⟩
+
 end Board
 end WeiqiObsmetrologia
 
