@@ -284,6 +284,53 @@ theorem libertyBoundary_saturated (pos : Position Point) (seed : Point → Prop)
   · rintro ⟨hempty, p, ⟨origin, horigin, path⟩, hadj⟩
     exact ⟨hempty, p, ⟨origin, ⟨origin, horigin, Reach.refl origin⟩, path⟩, hadj⟩
 
+/-! ## Contact incidence: an edge witness, not a holographic length -/
+
+/-- A liberty CONTACT retains the occupied endpoint and the adjacent empty
+endpoint of a qualified frontier. It is the source-facing incidence relation
+from which a future finite crossing count could be measured. In contrast,
+`qi` only remembers whether a given empty endpoint has SOME such contact;
+distinct contacts may share that endpoint. Neither object is an RT surface,
+a Crofton geodesic, a territory claim, or a move-history invariant. -/
+def LibertyContact (pos : Position Point) (carrier : OccupiedCarrier pos)
+    (stone emptyPoint : Point) : Prop :=
+  B.reachClosure pos carrier.contains stone ∧
+    pos emptyPoint = Stone.empty ∧
+    B.adjacent stone emptyPoint = true
+
+/-- A liberty exists precisely when at least one qualified contact ends there.
+This is a loss-of-multiplicity projection: contact evidence can be kept for
+intersection accounting, whereas qi deduplicates by empty endpoint. -/
+theorem qi_iff_exists_libertyContact (pos : Position Point)
+    (carrier : OccupiedCarrier pos) (q : Point) :
+    B.qi pos carrier q ↔ ∃ p, B.LibertyContact pos carrier p q := by
+  constructor
+  · rintro ⟨hempty, p, hreach, hadj⟩
+    exact ⟨p, hreach, hempty, hadj⟩
+  · rintro ⟨p, hreach, hempty, hadj⟩
+    exact ⟨hempty, p, hreach, hadj⟩
+
+/-- A qualified contact really starts at an occupied stone. In particular
+the reflexive reachability of an empty root is not a contact witness. -/
+theorem libertyContact_stone_occupied (pos : Position Point)
+    (carrier : OccupiedCarrier pos) (p q : Point)
+    (h : B.LibertyContact pos carrier p q) :
+    pos p ≠ Stone.empty := by
+  exact B.reachClosure_preserves_occupation pos carrier.contains
+    carrier.occupied p h.1
+
+/-- A contact ends outside the closed occupied carrier. Its exterior point
+cannot be silently counted as one more stone or as settled territory. -/
+theorem libertyContact_exterior (pos : Position Point)
+    (carrier : OccupiedCarrier pos) (p q : Point)
+    (h : B.LibertyContact pos carrier p q) :
+    ¬ B.reachClosure pos carrier.contains q := by
+  intro hmember
+  have hoccupied : pos q ≠ Stone.empty :=
+    B.reachClosure_preserves_occupation pos carrier.contains
+      carrier.occupied q hmember
+  exact hoccupied h.2.1
+
 end Board
 end WeiqiObsmetrologia
 
