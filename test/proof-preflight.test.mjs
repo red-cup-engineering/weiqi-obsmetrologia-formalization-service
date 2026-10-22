@@ -11,7 +11,8 @@ function fixture(testFn) {
     const lake = join(root, 'lib', 'weiqi-obsmetrologia');
     mkdirSync(join(lake, 'WeiqiObsmetrologia'), { recursive: true });
     writeFileSync(join(lake, 'lean-toolchain'), 'leanprover/lean4:v4.31.0\n');
-    writeFileSync(join(lake, 'WeiqiObsmetrologia', 'ReachClosure.lean'), '-- proof candidate\n');
+    for (const name of ['Board','Ko','Evidence','Admission','ReachClosure'])
+      writeFileSync(join(lake,'WeiqiObsmetrologia',name+'.lean'),'-- proof candidate\n');
     writeFileSync(join(lake, 'lakefile.toml'), [
       'name = "WeiqiObsmetrologia"',
       '[[require]]', 'name = "Obsmetrologia"', 'path = "../../source-obs"',
@@ -41,6 +42,10 @@ test('original declared source layout is inspected without changing lakefile', (
   assert.equal(read.errors.length, 0);
   assert.equal(read.dependencies.every(x => x.sourcePresent), true);
   assert.equal(typeof read.reachSourceSha256, 'string');
+  assert.deepEqual(Object.keys(read.sourceModuleSha256),
+    ['Board','Ko','Evidence','Admission','ReachClosure']);
+  assert.equal(Object.values(read.sourceModuleSha256).every(v=>typeof v==='string'),true);
+  assert.equal(read.dependencies.every(x=>typeof x.dependencyManifestSha256==='string'),true);
 }));
 
 test('unknown module target is refused before any execution', () => fixture(root => {
@@ -110,3 +115,12 @@ test('all local theorem declarations require real axiom probes, not docstring gh
     {requireProbes:true});
   assert.ok(absent.forbiddenTokens.includes('missing-local-axiom-probe:missing'));
 });
+
+
+test('missing any local proof module blocks before Lake and identifies that source',()=>fixture((root,lake)=>{
+  rmSync(join(lake,'WeiqiObsmetrologia','Evidence.lean'));
+  const result=inspectProofWorkspace(root);
+  assert.ok(result.errors.includes('missing-local-proof-module:Evidence'));
+  assert.equal(result.sourceModuleSha256.Evidence,null);
+  assert.equal(runProofTarget(root,'all').attemptedBuild,false);
+}));
