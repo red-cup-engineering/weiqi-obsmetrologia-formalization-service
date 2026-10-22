@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runNativeAxiomAudit } from './lean-axiom-readback.mjs';
+import { runNativeAxiomAudit, PROOF_MODULES } from './lean-axiom-readback.mjs';
 
 const MODULES = Object.freeze({
   all: null,
@@ -97,6 +97,7 @@ export function inspectProofWorkspace(root) {
     if (!declaredPath) errors.push('undeclared:' + name);
     else if (!sourcePresent) errors.push('unmounted:' + name);
     return { name, declaredPath, absolutePath, sourcePresent,
+      dependencyManifestSha256:absolutePath ? digest(join(absolutePath,'lakefile.toml')) : null,
       dependencyToolchain:sourcePresent && existsSync(join(absolutePath,'lean-toolchain'))
         ? readFileSync(join(absolutePath,'lean-toolchain'),'utf8').trim() : null,
     };
@@ -106,8 +107,12 @@ export function inspectProofWorkspace(root) {
   for (const dep of dependencies)
     if (dep.dependencyToolchain && toolchain && dep.dependencyToolchain !== toolchain)
       errors.push('toolchain-mismatch:' + dep.name);
+  const sourceModuleSha256 = Object.fromEntries(PROOF_MODULES.map(name=>{
+    const sourceFile=join(lakeDir,'WeiqiObsmetrologia',name+'.lean');
+    if (!existsSync(sourceFile)) errors.push('missing-local-proof-module:'+name);
+    return [name,digest(sourceFile)];
+  }));
   const reachSource=join(lakeDir, 'WeiqiObsmetrologia', 'ReachClosure.lean');
-  if (!existsSync(reachSource)) errors.push('missing-reach-source');
   const localProofAudit=existsSync(reachSource)
     ? lexicallyAuditLeanSource(readFileSync(reachSource,'utf8'), { requireProbes:true }) : null;
   for (const token of localProofAudit?.forbiddenTokens ?? [])
@@ -116,7 +121,8 @@ export function inspectProofWorkspace(root) {
     status: errors.length ? 'blocked' : 'source-mounts-present',
     errors, toolchain, lakeDir, dependencies, localProofAudit,
     lakefileSha256: digest(config),
-    reachSourceSha256: digest(reachSource),
+    sourceModuleSha256: Object.freeze(sourceModuleSha256),
+    reachSourceSha256: sourceModuleSha256.ReachClosure,
   };
 }
 
