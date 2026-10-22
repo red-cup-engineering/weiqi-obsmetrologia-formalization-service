@@ -54,9 +54,9 @@ theorem reachClosure_monotone (pos : Position Point)
 
 /-- A second closure adds no points: original Reach.trans supplies composition. -/
 theorem reachClosure_idempotent (pos : Position Point) (seed : Point → Prop) :
-    B.reachClosure pos (B.reachClosure pos seed) = B.reachClosure pos seed := by
-  funext q
-  apply propext
+    ∀ q, B.reachClosure pos (B.reachClosure pos seed) q ↔
+      B.reachClosure pos seed q := by
+  intro q
   constructor
   · intro hq
     obtain ⟨middle, ⟨origin, horigin, first⟩, last⟩ := hq
@@ -69,10 +69,9 @@ theorem reachClosure_idempotent (pos : Position Point) (seed : Point → Prop) :
 is no need to recompute the graph: every path's origin lies in one seed. -/
 theorem reachClosure_union (pos : Position Point)
     (seed other : Point → Prop) :
-    B.reachClosure pos (fun q => seed q ∨ other q) =
-      (fun q => B.reachClosure pos seed q ∨ B.reachClosure pos other q) := by
-  funext target
-  apply propext
+    ∀ q, B.reachClosure pos (fun p => seed p ∨ other p) q ↔
+      (B.reachClosure pos seed q ∨ B.reachClosure pos other q) := by
+  intro target
   constructor
   · rintro ⟨origin, horigin, path⟩
     rcases horigin with hseed | hother
@@ -88,18 +87,18 @@ This is an exact incremental reuse law, not a measured performance claim.
 It is specific to this fixed-position graph; ko/capture can change its edges. -/
 theorem reachClosure_merge (pos : Position Point)
     (seed other : Point → Prop) :
-    B.reachClosure pos (fun q => B.reachClosure pos seed q ∨ other q) =
-    B.reachClosure pos (fun q => seed q ∨ other q) := by
-  calc
-    B.reachClosure pos (fun q => B.reachClosure pos seed q ∨ other q) =
-        (fun q => B.reachClosure pos (B.reachClosure pos seed) q ∨
-          B.reachClosure pos other q) :=
-      B.reachClosure_union pos (B.reachClosure pos seed) other
-    _ = (fun q => B.reachClosure pos seed q ∨
-        B.reachClosure pos other q) := by
-      rw [B.reachClosure_idempotent pos seed]
-    _ = B.reachClosure pos (fun q => seed q ∨ other q) :=
-      (B.reachClosure_union pos seed other).symm
+    ∀ q, B.reachClosure pos (fun p => B.reachClosure pos seed p ∨ other p) q ↔
+      B.reachClosure pos (fun p => seed p ∨ other p) q := by
+  intro q
+  constructor
+  · rintro ⟨middle, hmiddle, path⟩
+    rcases hmiddle with ⟨origin, horigin, first⟩ | hother
+    · exact ⟨origin, Or.inl horigin, Reach.trans first path⟩
+    · exact ⟨middle, Or.inr hother, path⟩
+  · rintro ⟨origin, horigin, path⟩
+    rcases horigin with hseed | hother
+    · exact ⟨origin, Or.inl ⟨origin, hseed, Reach.refl origin⟩, path⟩
+    · exact ⟨origin, Or.inr hother, path⟩
 
 /-- A carrier predicate is closed under the existing position-specific paths. -/
 def ReachClosed (pos : Position Point) (carrier : Point → Prop) : Prop :=
@@ -138,15 +137,12 @@ theorem reachClosure_adjunction (pos : Position Point)
 /-- Closed carriers are exactly fixed points of the reachability closure. -/
 theorem reachClosure_fixed_iff_closed (pos : Position Point)
     (carrier : Point → Prop) :
-    (B.reachClosure pos carrier = carrier) ↔ B.ReachClosed pos carrier := by
+    (∀ q, B.reachClosure pos carrier q ↔ carrier q) ↔
+      B.ReachClosed pos carrier := by
   constructor
   · intro h p q hp path
-    have hq : B.reachClosure pos carrier q := ⟨p, hp, path⟩
-    rw [h] at hq
-    exact hq
-  · intro h
-    funext q
-    apply propext
+    exact (h q).mp ⟨p, hp, path⟩
+  · intro h q
     constructor
     · exact B.reachClosure_least pos carrier carrier h (fun _ hp => hp) q
     · exact B.reachClosure_extensive pos carrier q
@@ -255,10 +251,9 @@ liberties are sets, not summed counts: this is an exact union law suitable
 for incremental deduplication, not a life, influence, or strategy theorem. -/
 theorem libertyBoundary_union (pos : Position Point)
     (seed other : Point → Prop) :
-    B.libertyBoundary pos (fun p => seed p ∨ other p) =
-      (fun q => B.libertyBoundary pos seed q ∨ B.libertyBoundary pos other q) := by
-  funext q
-  apply propext
+    ∀ q, B.libertyBoundary pos (fun p => seed p ∨ other p) q ↔
+      (B.libertyBoundary pos seed q ∨ B.libertyBoundary pos other q) := by
+  intro q
   constructor
   · rintro ⟨hempty, p, ⟨origin, horigin, path⟩, hadj⟩
     rcases horigin with hseed | hother
@@ -274,10 +269,9 @@ theorem libertyBoundary_union (pos : Position Point)
 does not discover new qi. This is a fixed-position caching/invalidation law;
 it deliberately says nothing about which frontiers survive the next move. -/
 theorem libertyBoundary_saturated (pos : Position Point) (seed : Point → Prop) :
-    B.libertyBoundary pos (B.reachClosure pos seed) =
-      B.libertyBoundary pos seed := by
-  funext q
-  apply propext
+    ∀ q, B.libertyBoundary pos (B.reachClosure pos seed) q ↔
+      B.libertyBoundary pos seed q := by
+  intro q
   constructor
   · rintro ⟨hempty, p, ⟨mid, ⟨origin, horigin, first⟩, last⟩, hadj⟩
     exact ⟨hempty, p, ⟨origin, horigin, Reach.trans first last⟩, hadj⟩
@@ -422,3 +416,11 @@ end WeiqiObsmetrologia
 #print axioms WeiqiObsmetrologia.Board.qi_iff_contactEndpoint_supported
 #print axioms WeiqiObsmetrologia.Board.contactEndpoint_injective_iff_unique
 #print axioms WeiqiObsmetrologia.Board.contactEndpoint_noninjective_of_shared
+#print axioms WeiqiObsmetrologia.Board.reachClosure_closed
+#print axioms WeiqiObsmetrologia.Board.reachClosure_least
+#print axioms WeiqiObsmetrologia.Board.reachClosure_singleton_iff_group
+#print axioms WeiqiObsmetrologia.Board.qi_disjoint_occupied
+#print axioms WeiqiObsmetrologia.Board.libertyBoundary_monotone
+#print axioms WeiqiObsmetrologia.Board.libertyBoundary_union
+#print axioms WeiqiObsmetrologia.Board.libertyBoundary_saturated
+#print axioms WeiqiObsmetrologia.Board.requiring
