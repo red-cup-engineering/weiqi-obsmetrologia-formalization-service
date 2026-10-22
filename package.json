@@ -4,7 +4,13 @@
   "description": "Lean formalization of weiqi over Obsmetrologia, namespace WeiqiObsmetrologia (Board, Ko, Evidence, Admission): board, ko regimes and the 3^n bound, evidence monotonicity, admission as a Hoare program. Build: cd lib/weiqi-obsmetrologia && lake build.",
   "license": "MIT",
   "scripts": {
-    "test": "lake build"
+    "test": "npm run proof:all",
+    "proof:board": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.Board",
+    "proof:reach": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.ReachClosure",
+    "proof:ko": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.Ko",
+    "proof:evidence": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.Evidence",
+    "proof:admission": "cd lib/weiqi-obsmetrologia && lake build WeiqiObsmetrologia.Admission",
+    "proof:all": "cd lib/weiqi-obsmetrologia && lake build"
   },
   "repository": {
     "type": "git",
