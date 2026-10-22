@@ -121,7 +121,7 @@ result must retain a stone of the selected NONEMPTY colour at the played point.
 This is necessary for THAT fragment, NOT for all Go rules: the original native
 Weiqi engine admits a New Zealand positional-superko self-capture which removes
 the played stone and its connected group (5x5 witness: C3 black, D3 empty,
-white at B2/C2/B3/D2/E3/D4; exact fixture is in legal-frontier.test.mjs).
+white at C2/D2/B3/E3/C4/D4; exact fixture is in legal-frontier.test.mjs).
 This remains only a conservative admission condition: Board and this module
 do not compute captures or validate every changed board cell. The condition
 also prevents reflexive Reach at an empty root from masquerading as a string. -/
