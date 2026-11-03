@@ -1,4 +1,5 @@
 import WeiqiObsmetrologia.Board
+import WeiqiObsmetrologia.ReachClosure
 import WeiqiObsmetrologia.Ko
 import WeiqiObsmetrologia.Evidence
 import WeiqiObsmetrologia.Admission

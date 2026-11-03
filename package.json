@@ -4,7 +4,18 @@
   "description": "Lean formalization of weiqi over Obsmetrologia, namespace WeiqiObsmetrologia (Board, Ko, Evidence, Admission): board, ko regimes and the 3^n bound, evidence monotonicity, admission as a Hoare program. Build: cd lib/weiqi-obsmetrologia && lake build.",
   "license": "MIT",
   "scripts": {
-    "test": "lake build"
+    "test": "npm run test:preflight && npm run proof:receipt:all",
+    "proof:board": "node scripts/proof-preflight.mjs board",
+    "proof:reach": "node scripts/proof-preflight.mjs reach",
+    "proof:ko": "node scripts/proof-preflight.mjs ko",
+    "proof:evidence": "node scripts/proof-preflight.mjs evidence",
+    "proof:admission": "node scripts/proof-preflight.mjs admission",
+    "proof:all": "node scripts/proof-preflight.mjs all",
+    "test:preflight": "node --test test/proof-preflight.test.mjs test/lean-axiom-readback.test.mjs",
+    "proof:preflight": "node scripts/proof-preflight.mjs --check",
+    "proof:receipt:reach": "node scripts/proof-preflight.mjs reach",
+    "proof:receipt:all": "node scripts/proof-preflight.mjs all",
+    "test:axioms": "node --test test/lean-axiom-readback.test.mjs"
   },
   "repository": {
     "type": "git",
